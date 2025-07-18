@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Preposition Tutor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Soothing Blue-Grey Harmony -->
+    <!-- Application Structure Plan: The application is structured as an interactive master-detail interface. A primary navigation grid of all prepositions allows users to select one to study. A dedicated content area then dynamically displays detailed information for the chosen preposition, organized into logical, clickable tabs (e.g., Time, Place, Direction, Abstract Uses). This is supplemented by a bar chart showing preposition frequency and an interactive quiz for practice. This structure was chosen to break down a large amount of information into manageable, user-driven chunks, allowing learners to focus on one concept at a time, which is more effective for study and retention than a long, static document. The quiz provides immediate application of knowledge and reinforces learning. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: List of prepositions. -> Goal: Organize & Navigate. -> Presentation: Interactive grid of buttons. -> Interaction: Click to select. -> Justification: Provides a clear, visual entry point for each topic, making navigation intuitive. -> Method: HTML/JS.
+        - Report Info: Preposition meanings/uses. -> Goal: Inform & Teach. -> Presentation: Tabbed content cards with expanded examples. -> Interaction: Click tabs to switch categories (Time, Place, etc.). -> Justification: Organizes the multiple, nuanced uses of a single word, preventing information overload and allowing focused study on specific contexts. -> Method: HTML/JS.
+        - Report Info: Usage frequency (implicit). -> Goal: Compare & Prioritize. -> Presentation: Bar chart. -> Interaction: Hover for details. -> Justification: Gives users a visual sense of which prepositions are most important to master first, guiding study efforts. -> Library: Chart.js/Canvas.
+        - Report Info: Application of knowledge (implicit). -> Goal: Test & Reinforce. -> Presentation: Multiple-choice quiz. -> Interaction: Click to answer, get immediate feedback. -> Justification: Active recall and immediate feedback are powerful learning tools for solidifying understanding. -> Method: HTML/JS.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #E0F2F7, #E8F5E9, #F1F8E9);
+            background-size: 400% 400%;
+            animation: gradientAnimation 15s ease infinite;
+            color: #374151;
+        }
+        @keyframes gradientAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .active-prep {
+            background-color: #4A5568;
+            color: #FFFFFF;
+            transform: scale(1.05);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        .active-tab {
+            border-bottom-color: #4A5568;
+            color: #4A5568;
+            font-weight: 600;
+        }
+        .prep-button {
+            transition: all 0.2s ease-in-out;
+        }
+        .prep-button:hover {
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .content-card {
+            transition: opacity 0.3s ease-in-out;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-800">Interactive Preposition Tutor</h1>
+            <p class="text-lg text-gray-600 mt-2">Your guide to mastering English prepositions for the IELTS exam.</p>
+        </header>
+
+        <main class="flex flex-col lg:flex-row gap-8">
+            
+            <aside class="w-full lg:w-1/3 xl:w-1/4">
+                <div class="bg-white p-4 rounded-xl shadow-md">
+                    <h2 class="text-xl font-bold mb-4 text-center text-gray-700">Choose a Preposition</h2>
+                    <div id="preposition-grid" class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 gap-2">
+                    </div>
+                </div>
+            </aside>
+
+            <section class="w-full lg:w-2/3 xl:w-3/4">
+                <div id="content-display" class="bg-white p-6 rounded-xl shadow-md min-h-[400px]">
+                    <div class="text-center py-16">
+                        <h2 class="text-2xl font-semibold text-gray-700">Welcome!</h2>
+                        <p class="text-gray-500 mt-2">Select a preposition from the list to get started. You'll find detailed explanations and examples for each one.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <section class="mt-12 bg-white p-6 rounded-xl shadow-md">
+            <header class="text-center mb-6">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Preposition Frequency</h2>
+                <p class="text-md text-gray-600 mt-1">This chart shows how often different prepositions are generally used in English. It can help you prioritize your learning.</p>
+            </header>
+            <div class="chart-container">
+                <canvas id="frequencyChart"></canvas>
+            </div>
+        </section>
+
+        <section id="quiz-section" class="mt-12 bg-white p-6 rounded-xl shadow-md">
+             <header class="text-center mb-6">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Test Your Knowledge</h2>
+                <p class="text-md text-gray-600 mt-1">Apply what you've learned. Choose the correct preposition to complete the sentence.</p>
+            </header>
+            <div id="quiz-container" class="max-w-2xl mx-auto">
+                <div id="quiz-question" class="text-xl text-center font-semibold mb-4 text-gray-700"></div>
+                <div id="quiz-options" class="flex flex-wrap justify-center gap-3"></div>
+                <div id="quiz-feedback" class="text-center mt-4 h-6"></div>
+                <div class="text-center mt-4">
+                    <button id="next-question-btn" class="bg-gray-700 text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition-colors hidden">Next Question</button>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        const prepositionsData = [
+            { prep: 'of', uses: [ 
+                { category: 'Possession/Belonging', description: 'Shows belonging, origin, or a relationship between two nouns.', examples: [
+                    "The cover of the book is red.", 
+                    "He is a friend of mine.",
+                    "The capital of France is Paris."
+                ] }, 
+                { category: 'Composition/Material', description: 'Indicates what something is made of or composed of.', examples: [
+                    "A cup of tea.", 
+                    "A piece of cake.", 
+                    "The statue is made of marble."
+                ] }, 
+                { category: 'Reference/Topic', description: 'Connects to a specific subject, cause, or reason.', examples: [
+                    "I am tired of waiting.", 
+                    "She is proud of her work.",
+                    "He died of a rare disease.",
+                    "We talked of old times."
+                ] },
+                { category: 'Quantity/Number', description: 'Used with determiners to indicate a part of a whole or a quantity.', examples: [
+                    "Most of the students passed the exam.",
+                    "A number of issues were discussed.",
+                    "One of my favorite songs."
+                ] }
+            ] },
+            { prep: 'in', uses: [ 
+                { category: 'Time (Non-specific)', description: 'Used for non-specific times during a day, month, season, year, or century.', examples: [
+                    "I will see you in the morning.", 
+                    "My birthday is in July.", 
+                    "The book was written in 1999.",
+                    "In the 21st century, technology advanced rapidly."
+                ] }, 
+                { category: 'Place (Enclosed/Area)', description: 'Used for an enclosed space, a geographical location (city, country), or a large area.', examples: [
+                    "The cat is in the box.", 
+                    "I live in London.", 
+                    "She works in a large office.",
+                    "There are many trees in the park."
+                ] }, 
+                { category: 'State/Condition', description: 'Describes a state, condition, or situation.', examples: [
+                    "He is in love.", 
+                    "The project is in progress.",
+                    "She is in a good mood.",
+                    "The old car is in bad condition."
+                ] },
+                { category: 'Means/Method', description: 'Indicates the method or medium.', examples: [
+                    "Speak in a loud voice.",
+                    "Write in pencil.",
+                    "The news was reported in the newspaper."
+                ] }
+            ] },
+            { prep: 'to', uses: [ 
+                { category: 'Direction/Destination', description: 'Indicates movement towards a destination or a specific point.', examples: [
+                    "I am going to the store.", 
+                    "She walked to the park.",
+                    "He drove to work every day.",
+                    "We are flying to New York."
+                ] }, 
+                { category: 'Recipient/Receiver', description: 'Indicates the person or thing receiving something.', examples: [
+                    "I gave the book to her.", 
+                    "Please send it to me.",
+                    "She wrote a letter to her parents.",
+                    "He explained the concept to the students."
+                ] }, 
+                { category: 'Comparison/Relation', description: 'Used for comparing things or showing a relationship.', examples: [
+                    "I prefer tea to coffee.",
+                    "This is similar to that.",
+                    "Listen to the music.",
+                    "He is married to my sister."
+                ] },
+                { category: 'Time (Before the Hour)', description: 'Used to tell time, indicating minutes before the hour.', examples: [
+                    "It's ten to five (4:50).",
+                    "The clock struck quarter to twelve."
+                ] }
+            ] },
+            { prep: 'for', uses: [ 
+                { category: 'Purpose/Reason', description: 'Indicates the reason for something or the purpose of an action.', examples: [
+                    "I bought this for you.", 
+                    "We are saving money for a new car.",
+                    "This tool is for cutting wood.",
+                    "He was punished for his actions."
+                ] }, 
+                { category: 'Duration', description: 'Shows a period of time during which something happens.', examples: [
+                    "He has lived here for ten years.", 
+                    "I waited for an hour.",
+                    "She studied for three hours.",
+                    "They have been married for 20 years."
+                ] }, 
+                { category: 'Benefit/Advantage', description: 'Indicates who or what benefits from an action.', examples: [
+                    "This is good for your health.",
+                    "Exercise is beneficial for everyone.",
+                    "He works for a large company."
+                ] },
+                { category: 'Exchange/Price', description: 'Indicates what is given or received in exchange for something else.', examples: [
+                    "I bought it for $5.",
+                    "Two for the price of one."
+                ] }
+            ] },
+            { prep: 'with', uses: [ 
+                { category: 'Accompaniment', description: 'Means "together with" or "accompanied by".', examples: [
+                    "I went to the cinema with my friends.", 
+                    "She arrived with a large suitcase.",
+                    "He lives with his parents."
+                ] }, 
+                { category: 'Tool/Instrument', description: 'Indicates the tool or instrument used for an action.', examples: [
+                    "He cut the paper with scissors.", 
+                    "She wrote the letter with a blue pen.",
+                    "Open the door with the key."
+                ] }, 
+                { category: 'Possession/Characteristic', description: 'Shows that someone has something or a characteristic.', examples: [
+                    "The girl with the red hair is my sister.",
+                    "A man with a kind heart.",
+                    "The house with the green roof."
+                ] },
+                { category: 'Manner/Feeling', description: 'Describes the way something is done or the feeling involved.', examples: [
+                    "He spoke with confidence.",
+                    "She listened with interest.",
+                    "He reacted with anger."
+                ] }
+            ] },
+            { prep: 'on', uses: [ 
+                { category: 'Time (Specific)', description: 'Used for specific days and dates.', examples: [
+                    "The meeting is on Monday.", 
+                    "My birthday is on October 31st.",
+                    "They got married on a rainy day.",
+                    "The event is scheduled for May 5th."
+                ] }, 
+                { category: 'Place (Surface)', description: 'Used for a surface or a position directly above something, touching it.', examples: [
+                    "The book is on the table.", 
+                    "There is a picture on the wall.",
+                    "She sat on the floor.",
+                    "The house is on the hill."
+                ] }, 
+                { category: 'Topic/Subject', description: 'Indicates the subject or topic of something.', examples: [
+                    "He gave a presentation on climate change.",
+                    "A book on ancient history.",
+                    "We had a discussion on current events."
+                ] }, 
+                { category: 'Means of Transport (Public)', description: 'Used for public transport or vehicles you can stand in.', examples: [
+                    "I am on the bus.", 
+                    "She was on the train.",
+                    "He travels on the subway every day.",
+                    "They were on a flight to Tokyo."
+                ] },
+                { category: 'State/Condition', description: 'Describes a state or condition, often ongoing.', examples: [
+                    "The house is on fire.",
+                    "He is on duty.",
+                    "The phone is on silent mode."
+                ] }
+            ] },
+            { prep: 'at', uses: [ 
+                { category: 'Time (Specific)', description: 'Used for a specific time or a precise moment.', examples: [
+                    "The meeting starts at 3 PM.", 
+                    "I will see you at midnight.",
+                    "The shop closes at 9 o'clock.",
+                    "He arrived at dawn."
+                ] }, 
+                { category: 'Place (Specific Point)', description: 'Used for a specific point, location, or address.', examples: [
+                    "I am waiting at the bus stop.", 
+                    "She is at home.", 
+                    "We met at the party.",
+                    "He lives at 123 Main Street."
+                ] }, 
+                { category: 'Activity/Skill', description: 'Indicates engagement in an activity or proficiency in a skill.', examples: [
+                    "He is good at painting.", 
+                    "She laughed at my joke.",
+                    "They are playing at the park.",
+                    "He excels at mathematics."
+                ] },
+                { category: 'Direction/Target', description: 'Indicates a target or direction.', examples: [
+                    "He threw the ball at the wall.",
+                    "She looked at him with surprise."
+                ] }
+            ] },
+            { prep: 'from', uses: [ 
+                { category: 'Origin/Source', description: 'Indicates the starting point, origin, or source of something.', examples: [
+                    "I am from Canada.", 
+                    "This letter is from my mother.", 
+                    "He came from the office.",
+                    "The sound came from the basement."
+                ] }, 
+                { category: 'Time (Starting Point)', description: 'Indicates the starting time of a period.', examples: [
+                    "The shop is open from 9 AM to 5 PM.",
+                    "He worked from morning till night.",
+                    "The exhibition runs from July 1st."
+                ] },
+                { category: 'Separation/Difference', description: 'Indicates separation or distinction.', examples: [
+                    "He took the book from the shelf.",
+                    "This is different from that.",
+                    "She protected her children from harm."
+                ] },
+                { category: 'Cause/Reason', description: 'Indicates the cause or reason for something (less common than "for").', examples: [
+                    "He suffers from allergies.",
+                    "She is recovering from an illness."
+                ] }
+            ] },
+            { prep: 'by', uses: [ 
+                { category: 'Agent (Passive Voice)', description: 'Indicates the person or thing that performs an action in a passive sentence.', examples: [
+                    "The book was written by a famous author.", 
+                    "The window was broken by the wind.",
+                    "The decision was made by the committee."
+                ] }, 
+                { category: 'Means/Method', description: 'Shows how something is done or the method used.', examples: [
+                    "Please send the document by email.", 
+                    "I travel by train.",
+                    "He learned English by himself.",
+                    "Pay by credit card."
+                ] }, 
+                { category: 'Proximity/Location', description: 'Means "next to" or "beside".', examples: [
+                    "The house is by the river.",
+                    "She sat by the window.",
+                    "There's a small cafe by the station."
+                ] }, 
+                { category: 'Deadline/Time Limit', description: 'Indicates a time limit, meaning "on or before" a specific time.', examples: [
+                    "You must finish this by Friday.",
+                    "The report is due by noon.",
+                    "I will be home by 10 PM."
+                ] },
+                { category: 'Measurement/Amount', description: 'Describes dimensions or increases/decreases in amounts.', examples: [
+                    "My bedroom is three metres by two metres.",
+                    "The price increased by 10%."
+                ] }
+            ] },
+            { prep: 'about', uses: [ 
+                { category: 'Topic/Subject', description: 'Means "on the subject of" or "concerning".', examples: [
+                    "We were talking about the weather.", 
+                    "This book is about history.",
+                    "He is worried about his exam results.",
+                    "Tell me about your day."
+                ] }, 
+                { category: 'Approximation', description: 'Indicates an approximate number, quantity, or time.', examples: [
+                    "It costs about $10.", 
+                    "I will be there at about 6 PM.",
+                    "There were about fifty people at the party.",
+                    "He's about six feet tall."
+                ] },
+                { category: 'Movement (Around)', description: 'Indicates movement in various directions within an area.', examples: [
+                    "They wandered about the town.",
+                    "He looked about the room for his keys."
+                ] }
+            ] },
+            { prep: 'into', uses: [ 
+                { category: 'Movement (Inward)', description: 'Shows movement from outside to inside an enclosed space.', examples: [
+                    "He walked into the room.", 
+                    "The car crashed into a tree.",
+                    "She poured water into the glass.",
+                    "The bird flew into the cage."
+                ] },
+                { category: 'Transformation/Change', description: 'Used after verbs describing a transformation or change of state.', examples: [
+                    "We’ve translated the course into six different languages.", 
+                    "She changed into her swimming costume.",
+                    "The caterpillar turned into a butterfly.",
+                    "He broke the chocolate bar into pieces."
+                ] },
+                { category: 'Interest/Enthusiasm', description: 'Expresses enthusiasm or strong interest in something (informal).', examples: [
+                    "He’s really into his work.",
+                    "I’m into classical music."
+                ] }
+            ] },
+            { prep: 'through', uses: [ 
+                { category: 'Movement (Enclosed Space)', description: 'Shows movement from one side to the other, within something that surrounds the moving object.', examples: [
+                    "We drove through the tunnel.", 
+                    "She looked through the window.",
+                    "The path goes through the forest.",
+                    "He pushed his way through the crowd."
+                ] },
+                { category: 'Means/Method', description: 'Indicates the means or method by which something is achieved.', examples: [
+                    "He got the job through hard work.",
+                    "I learned about it through a friend.",
+                    "We communicated through an interpreter."
+                ] },
+                { category: 'Duration (Start to Finish)', description: 'Indicates a period of time from beginning to end (especially in American English).', examples: [
+                    "The office is open Monday through Friday.",
+                    "He worked through the night."
+                ] },
+                { category: 'Completion/Examination', description: 'Indicates completion or thorough examination.', examples: [
+                    "He saw the project through to the end.",
+                    "Let's go through the details one more time."
+                ] }
+            ] },
+            { prep: 'over', uses: [ 
+                { category: 'Position (Higher)', description: 'Means "above" or "on top of", often without touching.', examples: [
+                    "The plane flew over the city.", 
+                    "He put a blanket over the sleeping child.",
+                    "There's a bridge over the river."
+                ] }, 
+                { category: 'Movement (Across)', description: 'Indicates movement across a surface or from one side to another.', examples: [
+                    "A small boat came over the lake.",
+                    "She jumped over the fence.",
+                    "He tripped over a stone."
+                ] },
+                { category: 'Quantity/Amount', description: 'Indicates a quantity greater than a specific number or limit.', examples: [
+                    "It costs over $100.",
+                    "There were over 50 people at the meeting.",
+                    "He is over sixty years old."
+                ] },
+                { category: 'Duration/Period', description: 'Indicates an extended period of time.', examples: [
+                    "Over a period of three centuries, very little changed.",
+                    "He worked on the project over the weekend."
+                ] },
+                { category: 'Completion/End', description: 'Indicates the completion or end of something.', examples: [
+                    "The meeting is over.",
+                    "The game is over."
+                ] }
+            ] },
+            { prep: 'under', uses: [ 
+                { category: 'Position (Lower)', description: 'Means "below" or "beneath", often with physical contact or covering.', examples: [
+                    "The cat is under the table.", 
+                    "He had hidden the money under the floorboards.",
+                    "The town is under a layer of snow.",
+                    "She wore a sweater under her jacket."
+                ] }, 
+                { category: 'Age/Measurement', description: 'Used exclusively when referring to age, measurements of time, or weight (less than).', examples: [
+                    "You have to be under 18 to get an allowance.",
+                    "We finished the project in under a year.",
+                    "The package weighed just under 5 kilos."
+                ] },
+                { category: 'Condition/State', description: 'Describes a state, condition, or process.', examples: [
+                    "The bridge is under construction.",
+                    "The matter is under discussion.",
+                    "He is under a lot of pressure."
+                ] },
+                { category: 'Subordination/Control', description: 'Indicates being controlled or governed by something/someone.', examples: [
+                    "The country is under new management.",
+                    "He works under a strict boss."
+                ] }
+            ] },
+            { prep: 'since', uses: [ 
+                { category: 'Time (Starting Point)', description: 'Indicates a starting point in time, from which an action or state has continued up to the present (often with perfect tenses).', examples: [
+                    "I have lived here since 2010.", 
+                    "She has been waiting since noon.",
+                    "It has been raining since morning.",
+                    "They haven't seen each other since last year."
+                ] }
+            ] },
+            { prep: 'until', uses: [ 
+                { category: 'Time (End Point)', description: 'Indicates the point in time when an action or state ceases or a condition changes.', examples: [
+                    "We will wait until 5 PM.", 
+                    "He worked until midnight.",
+                    "The shop is open until 9 o'clock.",
+                    "I can't leave until she arrives."
+                ] }
+            ] },
+            { prep: 'during', uses: [ 
+                { category: 'Time (Throughout a Period)', description: 'Indicates when something happens over a period of time, throughout its duration.', examples: [
+                    "He fell asleep during the movie.", 
+                    "She called me during the meeting.",
+                    "It rained heavily during the night.",
+                    "Many changes occurred during the war."
+                ] }
+            ] },
+            { prep: 'above', uses: [ 
+                { category: 'Position (Higher, No Contact)', description: 'Denotes a higher position without any physical contact between the objects or entities involved.', examples: [
+                    "The plane flew above the clouds.", 
+                    "The picture hangs above my bed.",
+                    "His name is above mine on the list."
+                ] },
+                { category: 'Measurement/Level', description: 'Indicates a level higher than a specific point or amount.', examples: [
+                    "Mexico City is 2,240 metres above sea level.",
+                    "Temperatures above 25 degrees are rare.",
+                    "His performance was above average."
+                ] },
+                { category: 'Reference (Text)', description: 'Refers back to previously mentioned information in a text (formal).', examples: [
+                    "As mentioned above, all employees must take part.",
+                    "See the diagram above for details."
+                ] }
+            ] },
+            { prep: 'below', uses: [ 
+                { category: 'Position (Lower, No Contact)', description: 'Used to mean "lower than" without physical contact between the items in question.', examples: [
+                    "Just below the picture there are some questions.", 
+                    "The submarine is below the surface of the water.",
+                    "His office is below mine."
+                ] },
+                { category: 'Measurement/Level', description: 'Used with numbers, amounts, or statistics to indicate a lower level.', examples: [
+                    "Inflation has fallen below 5%.", 
+                    "The temperature dropped below freezing.",
+                    "His score was below what he expected."
+                ] },
+                { category: 'Reference (Text)', description: 'Refers forward to something that will be mentioned or shown later in the text (formal).', examples: [
+                    "In the figure below, you can see the results.",
+                    "Further details are provided below."
+                ] }
+            ] },
+            { prep: 'behind', uses: [ 
+                { category: 'Position (At the Back)', description: 'Indicates a position at the back of something or someone.', examples: [
+                    "The garden is behind the house.", 
+                    "He was standing behind me.",
+                    "The sun disappeared behind the clouds."
+                ] },
+                { category: 'Responsibility/Cause', description: 'Denotes being responsible for or the cause of something.', examples: [
+                    "It is still unclear who was behind the murder.",
+                    "Who is behind this new initiative?"
+                ] },
+                { category: 'Progress (Less Successful)', description: 'Signifies being less successful or making less progress.', examples: [
+                    "India finished second behind the Americans.",
+                    "The construction work is already behind schedule."
+                ] }
+            ] },
+            { prep: 'between', uses: [ 
+                { category: 'Relation (Two Distinct Items)', description: 'Used to refer to two things that are clearly separated or distinct.', examples: [
+                    "The shop is between the bank and the library.", 
+                    "I sat between my two friends.",
+                    "The border between Canada and the USA."
+                ] },
+                { category: 'Time/Numbers (Range)', description: 'Used to connect times or numbers, indicating a range.', examples: [
+                    "They lived in New York between 1998 and 2004.", 
+                    "What were you doing between 5.30 pm and 7.00 pm?",
+                    "The price ranges between $50 and $100."
+                ] },
+                { category: 'Comparison/Relationship', description: 'Used for comparisons, relationships, or discussions involving distinct entities.', examples: [
+                    "The differences between these cities are significant.",
+                    "Negotiations between the two companies failed.",
+                    "The relationship between diet and health."
+                ] }
+            ] },
+            { prep: 'among', uses: [ 
+                { category: 'Relation (Group/Mass)', description: 'Used to describe things that are not distinctly separated because they are part of a larger group, crowd, or mass of objects.', examples: [
+                    "She wanted to be among friends.", 
+                    "Among his books, we found some rare first editions.",
+                    "He was the tallest among the students.",
+                    "The secret was kept among the family members."
+                ] },
+                { category: 'Distribution/Division', description: 'Used when distributing or dividing something within a group.', examples: [
+                    "They decided to share the prize money among them.",
+                    "The responsibilities were divided among the team."
+                ] }
+            ] },
+            { prep: 'through', uses: [ 
+                { category: 'Movement (Enclosed Space)', description: 'Shows movement from one side to the other, within something that surrounds the moving object or person.', examples: [
+                    "We drove through the tunnel.", 
+                    "She looked through the window.",
+                    "The path goes through the forest.",
+                    "He pushed his way through the crowd."
+                ] },
+                { category: 'Means/Method', description: 'Indicates the means or method by which something is achieved.', examples: [
+                    "He got the job through hard work.",
+                    "I learned about it through a friend.",
+                    "We communicated through an interpreter."
+                ] },
+                { category: 'Duration (Start to Finish)', description: 'Indicates a period of time from beginning to end (especially in American English).', examples: [
+                    "The office is open Monday through Friday.",
+                    "He worked through the night."
+                ] },
+                { category: 'Completion/Examination', description: 'Indicates completion or thorough examination.', examples: [
+                    "He saw the project through to the end.",
+                    "Let's go through the details one more time."
+                ] }
+            ] },
+            { prep: 'across', uses: [ 
+                { category: 'Movement (Surface/Open Space)', description: 'Used to describe movement from one side to another, over a surface or across an open space.', examples: [
+                    "We took a boat across the river.", 
+                    "I swam across the lake.",
+                    "He walked across the street.",
+                    "The bridge stretches across the valley."
+                ] },
+                { category: 'Position (Opposite Side)', description: 'Indicates being on the opposite side of something.', examples: [
+                    "Across the room, she could see some old friends.",
+                    "The pharmacy is across from the Town Hall (American English)."
+                ] },
+                { category: 'Extent/Coverage', description: 'Emphasizes something happening simultaneously in many places or extending over an area.', examples: [
+                    "Coffee shops across the city.",
+                    "The news spread across the country."
+                ] }
+            ] },
+            { prep: 'along', uses: [ 
+                { category: 'Position/Movement (Linear)', description: 'Indicates a linear position or movement in a line next to something long and thin (road, path, river).', examples: [
+                    "There were lots of shops along the main street.", 
+                    "We walked along the beach collecting shells.",
+                    "The trees are planted along the riverbank."
+                ] },
+                { category: 'Accompaniment', description: 'Used in the phrase "along with" meaning "in addition to" or "together with".', examples: [
+                    "He came along with his brother.",
+                    "The report was submitted along with the proposal."
+                ] }
+            ] },
+            { prep: 'around', uses: [ 
+                { category: 'Movement (Circular/Various Directions)', description: 'Indicates movement in circles or from one place to another within an area.', examples: [
+                    "The earth goes around the sun.", 
+                    "They are planning a trip around the world.",
+                    "People were running around in panic.",
+                    "He looked around the room."
+                ] },
+                { category: 'Approximation', description: 'Used to express approximation for quantities or time.', examples: [
+                    "It costs around $10.", 
+                    "I will be there at around 6 PM.",
+                    "There were around a hundred guests."
+                ] },
+                { category: 'Proximity/Surrounding', description: 'Means surrounding someone or something.', examples: [
+                    "He put his arms around her.",
+                    "There were trees around the lake."
+                ] }
+            ] },
+            { prep: 'onto', uses: [ 
+                { category: 'Movement (To a Surface)', description: 'Primarily used to indicate movement into or on a particular place, emphasizing the dynamic act of arriving on a surface or into a position.', examples: [
+                    "I slipped as I stepped onto the platform.", 
+                    "The sheep were loaded onto trucks.",
+                    "The cat jumped onto the roof.",
+                    "He climbed onto the stage."
+                ] },
+                { category: 'Change of Subject/Topic', description: 'Describes a change in subject or the beginning of a new topic of discussion.', examples: [
+                    "How did we get onto this subject?",
+                    "Can we move onto the next item on the agenda?"
+                ] }
+            ] },
+            { prep: 'out of', uses: [ 
+                { category: 'Movement (Outward)', description: 'Shows movement from inside to outside an enclosed space.', examples: [
+                    "She got out of the car.", 
+                    "He took the keys out of his pocket.",
+                    "The bird flew out of the cage.",
+                    "He ran out of the building."
+                ] },
+                { category: 'Lack/Absence', description: 'Indicates a lack or absence of something.', examples: [
+                    "We ran out of milk.",
+                    "He's out of breath.",
+                    "The car is out of gas."
+                ] },
+                { category: 'Origin/Source', description: 'Indicates the origin or source, often implying creation or derivation.', examples: [
+                    "He made a sculpture out of clay.",
+                    "She acted out of desperation."
+                ] }
+            ] },
+            { prep: 'up', uses: [ 
+                { category: 'Direction (Upward)', description: 'Indicates a higher level or position, or movement towards one.', examples: [
+                    "We followed her up the stairs.", 
+                    "The lorry chugged up the hill.",
+                    "The balloon went up into the air.",
+                    "He looked up at the sky."
+                ] },
+                { category: 'Location (Higher Point)', description: 'Means being at the highest point of something or further along a linear path.', examples: [
+                    "You'll find a dusty attic up these stairs.",
+                    "Her office is up the street."
+                ] },
+                { category: 'Completion/Increase', description: 'Often used in phrasal verbs to indicate completion or an increase.', examples: [
+                    "Clean up your room.",
+                    "The prices went up.",
+                    "Drink up your milk."
+                ] }
+            ] },
+            { prep: 'down', uses: [ 
+                { category: 'Direction (Downward)', description: 'Indicates a lower position or movement towards one.', examples: [
+                    "I slid down the hill.", 
+                    "Aikiko fell down some stairs.",
+                    "Tears ran down her cheeks.",
+                    "The prices have gone down."
+                ] },
+                { category: 'Location (Along)', description: 'Can describe movement along something (e.g., a road, corridor).', examples: [
+                    "We drove down the highway.",
+                    "Her office is down the corridor."
+                ] },
+                { category: 'Completion/Reduction', description: 'Often used in phrasal verbs to indicate completion or reduction.', examples: [
+                    "Cut down on sugar.",
+                    "Break down the wall.",
+                    "Write down the notes."
+                ] }
+            ] },
+            { prep: 'past', uses: [ 
+                { category: 'Movement (Beyond)', description: 'Indicates movement from one side to another, or going by something, moving further than a particular point.', examples: [
+                    "I live on Station Road, just past the post office.", 
+                    "Three boys went past us on mountain bikes.",
+                    "He drove past the school."
+                ] },
+                { category: 'Time (After the Hour)', description: 'Used to state the time when it is a specific number of minutes after an hour.', examples: [
+                    "It's five past three (3:05).",
+                    "It's half past two (2:30)."
+                ] },
+                { category: 'Beyond a Limit', description: 'Can mean being beyond a particular age or further than a specific point in time/limit.', examples: [
+                    "She's past the age where she needs a babysitter.",
+                    "The problem is past solving."
+                ] }
+            ] },
+            { prep: 'next to', uses: [ 
+                { category: 'Position (Adjacent)', description: 'Means "at the side of" or "immediately adjacent to" someone or something.', examples: [
+                    "I sat next to my best friend.", 
+                    "The bank is next to the post office.",
+                    "There's a small park next to my house."
+                ] }
+            ] },
+            { prep: 'against', uses: [ 
+                { category: 'Opposition/Hostility', description: 'Used to express negative, hostile, or opposing reactions to situations, beliefs, or people.', examples: [
+                    "Millions of people campaigned against the war.", 
+                    "Discrimination against people is illegal.",
+                    "Are you for or against the proposal?"
+                ] },
+                { category: 'Contact/Support', description: 'Describes physical contact where one thing is leaning on or pressing upon another.', examples: [
+                    "She was leaning against the wall.", 
+                    "The rain beat against the windows.",
+                    "He put the ladder against the tree."
+                ] },
+                { category: 'Protection/Prevention', description: 'Denotes protection or prevention from something.', examples: [
+                    "A vaccination against the measles.",
+                    "Protection against cyber threats."
+                ] }
+            ] },
+            { prep: 'without', uses: [ 
+                { category: 'Absence/Lack', description: 'Means "not having something" or "lacking something".', examples: [
+                    "I can’t drink tea without milk.", 
+                    "I found myself in a strange country, without money.",
+                    "She left without saying goodbye.",
+                    "You can't make an omelette without breaking eggs."
+                ] },
+                { category: 'Condition (If Not)', description: 'Followed by an -ing form, can mean "if someone does not do something".', examples: [
+                    "I couldn’t get the picture out of the frame without breaking the glass.",
+                    "You can't learn without making mistakes."
+                ] }
+            ] },
+            { prep: 'towards', uses: [ 
+                { category: 'Direction (Movement)', description: 'Signifies movement in the direction of, or closer to, someone or something.', examples: [
+                    "She stood up and walked towards him.", 
+                    "The country seems to be drifting towards war.",
+                    "The bus is heading towards town."
+                ] },
+                { category: 'Relation/Attitude', description: 'Expresses a relation or attitude to something or someone.', examples: [
+                    "They've always been very friendly towards me.",
+                    "There has been a change in government policy towards energy efficiency."
+                ] },
+                { category: 'Time (Approaching)', description: 'Indicates being near to, just before, or around a specific time.', examples: [
+                    "I often get hungry towards the middle of the morning.",
+                    "The project is nearing completion towards the end of the year."
+                ] }
+            ] },
+            { prep: 'like', uses: [ 
+                { category: 'Similarity/Comparison', description: 'Used to express similarity or comparison, meaning "similar to" or "in the same way as".', examples: [
+                    "She’s got a headache like me.", 
+                    "That house looks like a castle.",
+                    "He sings like a professional.",
+                    "My sister is like my mother."
+                ] },
+                { category: 'Characteristic/Typical', description: 'Indicates what is usual or typical for someone (informal).', examples: [
+                    "It's just like her to tell everyone.",
+                    "It's unlike you to be quiet - is something wrong?"
+                ] },
+                { category: 'Inquiry (Description)', description: 'Used to inquire about someone or something\'s opinion or nature (e.g., "What\'s it like...?").', examples: [
+                    "What's it like studying in Spain?",
+                    "What's your new apartment like?"
+                ] }
+            ] },
+            { prep: 'near', uses: [ 
+                { category: 'Proximity (Distance)', description: 'Signifies proximity, meaning "not far away in distance" (often interchangeable with "near to").', examples: [
+                    "She comes from a small place on the coast near Barcelona.", 
+                    "My mother loves to sit near the fire at night.",
+                    "The restaurant is near the theater."
+                ] },
+                { category: 'Proximity (Time/State)', description: 'Indicates approaching a point in time or being almost in a particular state or condition.', examples: [
+                    "My boss is near retirement.", 
+                    "Call me back near the end of September.",
+                    "I was near despair."
+                ] }
+            ] },
+            { prep: 'off', uses: [ 
+                { category: 'Separation/Disconnection', description: 'Indicates separation or disconnection from a surface or position; removal.', examples: [
+                    "Take off my coat.", 
+                    "His jacket is off.",
+                    "The lid came off the jar.",
+                    "Keep your hands off the painting."
+                ] },
+                { category: 'Absence from Work/Duty', description: 'Denotes that someone is not working or no longer on a shift.', examples: [
+                    "What time does the doctor go off duty?",
+                    "He is off sick today."
+                ] },
+                { category: 'Completion/End', description: 'Can mean to complete or end something.', examples: [
+                    "Finish off the meal.",
+                    "He paid off his debts."
+                ] },
+                { category: 'Emission', description: 'To emit something like a smell, light, or heat.', examples: [
+                    "The flowers gave off a sweet smell.",
+                    "The old car gives off a lot of smoke."
+                ] }
+            ] },
+            { prep: 'opposite', uses: [ 
+                { category: 'Position (Facing)', description: 'Used to indicate a position directly facing someone or something but on the other side.', examples: [
+                    "We're in the building opposite the government offices.", 
+                    "They sat opposite each other.",
+                    "The park is opposite the library."
+                ] },
+                { category: 'Contrast', description: 'Can also imply a direct contrast or the reverse of something.', examples: [
+                    "Black is the opposite of white.",
+                    "They went in opposite directions."
+                ] }
+            ] },
+            { prep: 'outside', uses: [ 
+                { category: 'Location (External)', description: 'Used to mean "not in a particular place, but near it" or "in the open air".', examples: [
+                    "There’s a chair just outside the room opposite.", 
+                    "It was sunny outside, but not very warm.",
+                    "She works just outside of Dublin."
+                ] },
+                { category: 'Exclusion/Beyond Limits', description: 'Can mean "anywhere else apart from a particular place" or "excluding" a period of time.', examples: [
+                    "There is a weight limit for letters outside Europe.",
+                    "Outside of the summer months, the hotel rates are lower.",
+                    "This is outside my area of expertise."
+                ] }
+            ] },
+            { prep: 'round', uses: [ 
+                { category: 'Movement (Circular)', description: 'Used to describe movements in circles or surrounding something (often interchangeable with "around").', examples: [
+                    "The earth goes round the sun.", 
+                    "We spent a very pleasant day walking round the town.",
+                    "She put her arms round him."
+                ] },
+                { category: 'Location (Various Points)', description: 'Indicates being in different places or here and there within an area.', examples: [
+                    "People were panicking and running round and shouting.",
+                    "He looked round the corner."
+                ] }
+            ] },
+            { prep: 'than', uses: [ 
+                { category: 'Comparison', description: 'Primarily used as a conjunction or preposition to introduce the second part of a comparison, following comparative adjectives and adverbs.', examples: [
+                    "I'm older than her.", 
+                    "It was much better than I'd expected.",
+                    "He has more money than sense.",
+                    "She runs faster than him."
+                ] },
+                { category: 'Alternative (Rather Than)', description: 'Used in expressions to indicate an alternative or preference.', examples: [
+                    "I'd rather email than phone.",
+                    "Rather than complain, he decided to act."
+                ] }
+            ] },
+            { prep: 'upon', uses: [ 
+                { category: 'Formality (On)', description: 'A more formal equivalent of "on," used to indicate position.', examples: [
+                    "Upon her head she wore a black velvet hat.",
+                    "The responsibility rests upon his shoulders."
+                ] },
+                { category: 'Immediacy/Consequence', description: 'Denotes something happening immediately after, and often as a result of, another event.', examples: [
+                    "Upon your arrival, please report to the reception desk.", 
+                    "Upon hearing the good news, we all congratulated Murphy.",
+                    "He collapsed upon entering the room."
+                ] },
+                { category: 'Dependence', description: 'Can show dependence or reliance.', examples: [
+                    "That depends upon the circumstances.",
+                    "You can never place enough emphasis upon the importance of safety."
+                ] }
+            ] },
+            { prep: 'via', uses: [ 
+                { category: 'Route/Passage', description: 'Indicates going through or stopping at a place on the way to another place (travel).', examples: [
+                    "The London to Cairo flight goes via Rome.", 
+                    "I'll be back a little late because I'm going via town.",
+                    "We drove via the scenic route."
+                ] },
+                { category: 'Means/Medium', description: 'Refers to using a particular machine, system, or person to send or receive something.', examples: [
+                    "Reports are coming in via satellite.", 
+                    "I only found out about it via my sister.",
+                    "Send the document via email."
+                ] }
+            ] },
+            { prep: 'within', uses: [ 
+                { category: 'Limits (Space)', description: 'Used to indicate something is "inside or not further than" a particular area or space.', examples: [
+                    "People who live within the city pay higher local taxes.", 
+                    "The park is within walking distance.",
+                    "Keep your dog within the boundaries of the garden."
+                ] },
+                { category: 'Limits (Time)', description: 'Means "no later than" a particular time or "in less than" a specified period.', examples: [
+                    "They should arrive within three days.", 
+                    "I’ve noticed her change within a very short time.",
+                    "The results will be delivered within fourteen days."
+                ] },
+                { category: 'Internal', description: 'Can refer to inner feelings or aspects.', examples: [
+                    "He tried to hide the anger burning within him.",
+                    "The solution lies within ourselves."
+                ] }
+            ] }
+        ];
+        
+        // Ensure all prepositions are covered, adding a general use if specific data is missing
+        const allPrepositions = [ 'of', 'in', 'to', 'for', 'with', 'on', 'at', 'from', 'by', 'about', 'since', 'until', 'during', 'over', 'under', 'above', 'below', 'behind', 'between', 'among', 'through', 'across', 'along', 'around', 'into', 'onto', 'out of', 'up', 'down', 'past', 'next to', 'against', 'without', 'towards', 'like', 'near', 'off', 'opposite', 'outside', 'round', 'than', 'upon', 'via', 'within'];
+        
+        allPrepositions.forEach(p => {
+            if (!prepositionsData.some(pd => pd.prep === p)) {
+                prepositionsData.push({ prep: p, uses: [{ category: 'General Use', description: 'This is a common preposition. More specific uses and examples will be added soon.', examples: ['No specific examples available yet.']}] });
+            }
+        });
+        prepositionsData.sort((a, b) => a.prep.localeCompare(b.prep));
+
+        const prepositionGrid = document.getElementById('preposition-grid');
+        const contentDisplay = document.getElementById('content-display');
+        
+        const renderPrepositionGrid = () => {
+            prepositionsData.forEach(item => {
+                const button = document.createElement('button');
+                button.textContent = item.prep;
+                button.dataset.prep = item.prep;
+                button.className = 'prep-button p-2 rounded-lg bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-300 text-gray-700 font-medium';
+                prepositionGrid.appendChild(button);
+            });
+        };
+
+        const renderPrepositionDetails = (prepName) => {
+            const data = prepositionsData.find(p => p.prep === prepName);
+            if (!data) return;
+
+            let tabsHTML = '<div class="flex border-b border-gray-200 mb-4 overflow-x-auto whitespace-nowrap">';
+            data.uses.forEach((use, index) => {
+                tabsHTML += `<button data-tab="${index}" class="tab-button py-2 px-4 text-gray-500 hover:text-gray-700 border-b-2 border-transparent ${index === 0 ? 'active-tab' : ''}">${use.category}</button>`;
+            });
+            tabsHTML += '</div>';
+
+            let contentHTML = '<div class="tab-content">';
+            data.uses.forEach((use, index) => {
+                contentHTML += `<div id="tab-content-${index}" class="${index === 0 ? '' : 'hidden'}">`;
+                contentHTML += `<p class="text-gray-600 mb-3">${use.description}</p>`;
+                contentHTML += '<ul class="list-disc list-inside space-y-2">';
+                use.examples.forEach(example => {
+                    contentHTML += `<li class="text-gray-700">${example}</li>`;
+                });
+                contentHTML += '</ul></div>';
+            });
+            contentHTML += '</div>';
+            
+            contentDisplay.innerHTML = `
+                <div class="content-card">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-4 capitalize">${data.prep}</h2>
+                    ${tabsHTML}
+                    ${contentHTML}
+                </div>
+            `;
+            
+            contentDisplay.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabId = button.dataset.tab;
+                    contentDisplay.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active-tab'));
+                    button.classList.add('active-tab');
+
+                    contentDisplay.querySelectorAll('.tab-content > div').forEach(content => content.classList.add('hidden'));
+                    document.getElementById(`tab-content-${tabId}`).classList.remove('hidden');
+                });
+            });
+        };
+
+        prepositionGrid.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                const prepName = e.target.dataset.prep;
+                
+                document.querySelectorAll('#preposition-grid button').forEach(btn => btn.classList.remove('active-prep'));
+                e.target.classList.add('active-prep');
+
+                renderPrepositionDetails(prepName);
+            }
+        });
+
+        const frequencyData = {
+            'of': 95, 'in': 88, 'to': 85, 'for': 75, 'with': 70, 'on': 68, 'at': 65,
+            'from': 50, 'by': 48, 'about': 40, 'over': 30, 'under': 28, 'through': 25,
+            'after': 22, 'before': 20, 'between': 18, 'among': 15, 'since': 14,
+            'until': 13, 'during': 12, 'without': 11, 'against': 10, 'around': 9,
+            'above': 8, 'below': 7, 'into': 23, 'across': 16, 'along': 10, 'onto': 6,
+            'out of': 19, 'up': 20, 'down': 18, 'past': 9, 'next to': 7, 'towards': 8,
+            'like': 35, 'near': 10, 'off': 25, 'opposite': 5, 'outside': 7, 'round': 8,
+            'than': 15, 'upon': 4, 'via': 3, 'within': 6
+        };
+        const chartLabels = Object.keys(frequencyData).sort((a,b) => frequencyData[b] - frequencyData[a]).slice(0, 20); // Show top 20
+        const chartValues = chartLabels.map(label => frequencyData[label]);
+        
+        const ctx = document.getElementById('frequencyChart').getContext('2d');
+        const frequencyChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Relative Frequency',
+                    data: chartValues,
+                    backgroundColor: '#718096', /* Muted blue-grey */
+                    borderColor: '#4A5568',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Relative Usage Score' },
+                        grid: { color: 'rgba(200, 200, 200, 0.2)' }
+                    },
+                    x: {
+                        title: { display: true, text: 'Prepositions' },
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `An estimated usage score of ${context.raw}. Higher is more common.`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        const quizData = [
+            { question: "She has been living in this city ___ 2015.", options: ["for", "since", "at"], answer: "since" },
+            { question: "The book is ___ the table.", options: ["on", "in", "at"], answer: "on" },
+            { question: "We arrived ___ the airport just in time.", options: ["on", "to", "at"], answer: "at" },
+            { question: "I bought these flowers ___ you.", options: ["for", "with", "to"], answer: "for" },
+            { question: "He is responsible ___ the marketing department.", options: ["of", "for", "with"], answer: "for" },
+            { question: "The movie was directed ___ Steven Spielberg.", options: ["from", "by", "with"], answer: "by" },
+            { question: "I prefer coffee ___ tea.", options: ["than", "from", "to"], answer: "to" },
+            { question: "He divided the cake ___ the two children.", options: ["among", "between", "with"], answer: "between" },
+            { question: "The keys are ___ the drawer.", options: ["on", "in", "at"], answer: "in" },
+            { question: "Don't lean ___ that wall, the paint is wet.", options: ["towards", "against", "on"], answer: "against" },
+            { question: "The cat jumped ___ the table.", options: ["on", "onto", "in"], answer: "onto" },
+            { question: "We drove ___ a long tunnel.", options: ["across", "through", "over"], answer: "through" },
+            { question: "The bird flew ___ the city.", options: ["over", "under", "through"], answer: "over" },
+            { question: "The ball rolled ___ the bed.", options: ["over", "under", "above"], answer: "under" },
+            { question: "He works ___ a large company.", options: ["at", "on", "for"], answer: "for" },
+            { question: "I'll meet you ___ 7 PM.", options: ["on", "in", "at"], answer: "at" },
+            { question: "The train goes ___ London to Paris.", options: ["from", "by", "to"], answer: "from" },
+            { question: "She is good ___ playing the piano.", options: ["in", "on", "at"], answer: "at" },
+            { question: "He spoke ___ confidence.", options: ["by", "with", "for"], answer: "with" },
+            { question: "The meeting is ___ Monday.", options: ["in", "on", "at"], answer: "on" }
+        ];
+
+        let currentQuestionIndex = 0;
+        const quizQuestionEl = document.getElementById('quiz-question');
+        const quizOptionsEl = document.getElementById('quiz-options');
+        const quizFeedbackEl = document.getElementById('quiz-feedback');
+        const nextQuestionBtn = document.getElementById('next-question-btn');
+
+        function loadQuestion() {
+            const currentQuestion = quizData[currentQuestionIndex];
+            quizQuestionEl.textContent = currentQuestion.question.replace('___', '______');
+            quizOptionsEl.innerHTML = '';
+            quizFeedbackEl.innerHTML = '';
+            nextQuestionBtn.classList.add('hidden');
+
+            currentQuestion.options.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.className = 'prep-button p-3 rounded-lg bg-blue-50 hover:bg-blue-100 min-w-[100px] text-gray-700 font-medium';
+                button.addEventListener('click', () => checkAnswer(option));
+                quizOptionsEl.appendChild(button);
+            });
+        }
+        
+        function checkAnswer(selectedOption) {
+            const currentQuestion = quizData[currentQuestionIndex];
+            if (selectedOption === currentQuestion.answer) {
+                quizFeedbackEl.textContent = "Correct! ✅";
+                quizFeedbackEl.className = "text-center mt-4 h-6 text-green-600 font-semibold";
+            } else {
+                quizFeedbackEl.textContent = `Not quite. The correct answer is "${currentQuestion.answer}". ❌`;
+                quizFeedbackEl.className = "text-center mt-4 h-6 text-red-600 font-semibold";
+            }
+            
+            quizOptionsEl.querySelectorAll('button').forEach(btn => btn.disabled = true);
+            
+            if(currentQuestionIndex < quizData.length - 1) {
+                nextQuestionBtn.classList.remove('hidden');
+            } else {
+                 quizQuestionEl.textContent = "You've completed the quiz! Well done!";
+                 quizOptionsEl.innerHTML = '';
+                 nextQuestionBtn.classList.add('hidden');
+            }
+        }
+        
+        nextQuestionBtn.addEventListener('click', () => {
+            currentQuestionIndex++;
+            loadQuestion();
+        });
+
+
+        renderPrepositionGrid();
+        loadQuestion();
+    </script>
+
+</body>
+</html>
